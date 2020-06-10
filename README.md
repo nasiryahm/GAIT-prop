@@ -26,13 +26,14 @@ Long Arguments:
 |`--learning_rate=`|0.0001|The learning rate to use for the simulation|
 |`--dataset={MNIST,KMNIST,FMNIST}`|MNIST|The dataset to use for training|
 
+
 Short Arguments:
+
 
 |option|explanation|
 |---|---|
-|`--linear`|Makes use of a linear transfer function instead of leaky-ReLu.|
-|`--tower`|Instead of creating a Square (fixed-width) network, a network with different sized layers is used. The shape of the layers is fixed in run.py (L153)|
-|`--linear`|Makes use of a linear transfer function instead of leaky-ReLu.|
+| `--linear` |Makes use of a linear transfer function instead of leaky-ReLu.|
+| `--tower` |Instead of creating a Square (fixed-width) network, a network with different sized layers is used. The shape of the layers is fixed in run.py (L153)|
 
 
 A few examples of command-line executions are provided
