@@ -1,5 +1,5 @@
 # GAIT Propagation Code Instructions
-This code accompanies the arXiv pre-print titled ["**GAIT-prop: A biologically plausible learning rule derived from backpropagation of error**"](todo!).
+This code accompanies the arXiv pre-print titled ["**GAIT-prop: A biologically plausible learning rule derived from backpropagation of error**"](https://arxiv.org/abs/2006.06438).
 
 Enclosed ar a few files, a brief description of each:
 - *run.py*: A python script designed to instantiate, train, and dump invertible neural network models. This is the main python file for model reproduction.
