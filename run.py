@@ -40,6 +40,7 @@ opts, remaining = getopt.getopt(
      'load',
      'linear',
      'tower',
+     'orthogonal_init',
      'seed=',
      'orthogonal_reg=',
      'device=',
