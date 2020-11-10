@@ -95,8 +95,11 @@ outpath = outpath + algorithm + "_"
 if linear:
     outpath = outpath + "Linear_"
 
-if orthogonal_init::
+if ortho_init:
     outpath = outpath + "OrthoInit_"
+
+if learn_inv:
+    outpath = outpath + "LearnInv_"
 
 outpath = outpath + str(ortho_reg) + "OrthoReg_"
 # If we are using a non-zero orthogonal regularizer, initialise orthogonal matrices (for SquareInvNet).

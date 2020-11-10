@@ -49,11 +49,11 @@ class InvLayer:
         # This is initially adagrad
         self.adaptive = adaptive
         if self.adaptive:
-            self.adaptive_forward_weight_params = {'first_moment': xp.zeros(self.forward_weight_matrix.shape), 'second_moment': xp.zeros(forward_weight_matrix.shape)}
-            self.adaptive_forward_bias_params = {'first_moment': xp.zeros(self.forward_biases.shape), 'second_moment': xp.zeros(forward_biases.shape)}
+            self.adaptive_forward_weight_params = {'first_moment': xp.zeros(self.forward_weight_matrix.shape), 'second_moment': xp.zeros(self.forward_weight_matrix.shape)}
+            self.adaptive_forward_bias_params = {'first_moment': xp.zeros(self.forward_biases.shape), 'second_moment': xp.zeros(self.forward_biases.shape)}
             if learn_inv:
-                self.adaptive_backward_weight_params = {'first_moment': xp.zeros(self.backward_weight_matrix.shape), 'second_moment': xp.zeros(backward_weight_matrix.shape)}
-                self.adaptive_backward_bias_params = {'first_moment': xp.zeros(self.backward_biases.shape), 'second_moment': xp.zeros(backward_biases.shape)}
+                self.adaptive_backward_weight_params = {'first_moment': xp.zeros(self.backward_weight_matrix.shape), 'second_moment': xp.zeros(self.backward_weight_matrix.shape)}
+                self.adaptive_backward_bias_params = {'first_moment': xp.zeros(self.backward_biases.shape), 'second_moment': xp.zeros(self.backward_biases.shape)}
 
 
     def __call__(self, data):
