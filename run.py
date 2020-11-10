@@ -53,8 +53,6 @@ for opt, arg in opts:
         algorithm = arg
     if opt == '--orthogonal_init':
         ortho_init = True
-    if opt == '--local_connectivity':
-        local_connectivity = True
     if opt == '--load':
         load = True
     if opt == '--linear':
@@ -90,6 +88,9 @@ outpath = outpath + algorithm + "_"
 
 if linear:
     outpath = outpath + "Linear_"
+
+if ortho_init:
+    outpath = outpath + "OrthoInit_"
 
 outpath = outpath + str(ortho_reg) + "OrthoReg_"
 # If we are using a non-zero orthogonal regularizer, initialise orthogonal matrices (for SquareInvNet).

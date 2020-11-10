@@ -40,14 +40,14 @@ A few examples of command-line executions are provided
     
     # Full-Width Networks
     # Training a four hidden-layer network by BP/GAIT/TP (with parameters identified in the paper):
-    ./run.py --algorithm=BP --learning_rate=0.0001 --nb_layers=4 --nb_epochs=100
-    ./run.py --algorithm=GAIT --learning_rate=0.0001 --orthogonal_reg=0.1 --nb_layers=4 --nb_epochs=100
-    ./run.py --algorithm=TP --learning_rate=0.00001 --orthogonal_reg=1000.0 --nb_layers=4 --nb_epochs=100
+    python run.py --algorithm=BP --learning_rate=0.0001 --nb_layers=4 --nb_epochs=100
+    python run.py --algorithm=GAIT --learning_rate=0.0001 --orthogonal_init --orthogonal_reg=0.1 --nb_layers=4 --nb_epochs=100
+    python run.py --algorithm=TP --learning_rate=0.00001 --orthogonal_init --orthogonal_reg=1000.0 --nb_layers=4 --nb_epochs=100
     
     # Training a variable width network by GAIT-prop:
-    ./run.py --algorithm=GAIT --learning_rate=0.0001 --orthogonal_reg=0.1 --nb_layers=4 --nb_epochs=100 --tower
+    python run.py --algorithm=GAIT --learning_rate=0.0001 --orthogonal_init --orthogonal_reg=0.1 --nb_layers=4 --nb_epochs=100 --tower
     
     # Training a linear TP network with four hidden layers
-    ./run.py --algorithm=TP --linear --learning_rate=0.00001 --orthogonal_reg=1000.0 --nb_layers=4 --nb_epochs=100
+    python run.py --algorithm=TP --linear --learning_rate=0.00001 --orthogonal_init --orthogonal_reg=1000.0 --nb_layers=4 --nb_epochs=100
 
 
