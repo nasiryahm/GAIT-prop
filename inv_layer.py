@@ -13,7 +13,7 @@ class InvLayer:
 
     def __init__(self, nb_units, seed=1,
                  transfer_func=lambda x: x, transfer_derivative_func=lambda x: 1, transfer_inverse_func=lambda x: x,
-                 orthogonal_init=False, adaptive=False, linear=False):
+                 orthogonal_init=False, adaptive=False, linear=False, learn_inv=False):
         # Storing layer parameters
         self.transfer_func = transfer_func
         self.transfer_derivative_func = transfer_derivative_func
@@ -26,18 +26,21 @@ class InvLayer:
 
         # Initialize weights
         self.forward_weight_matrix = xp.random.randn(nb_units, nb_units)
-        # Applying a scaling to the weight matrix (Xavier init)
         self.forward_weight_matrix *= xp.sqrt(2/(self.forward_weight_matrix.shape[0]+self.forward_weight_matrix.shape[1]))
         self.forward_biases = xp.zeros(nb_units)
+        
+        self.backward_weight_matrix = xp.random.randn(nb_units, nb_units)
+        self.backward_weight_matrix *= xp.sqrt(2/(self.backward_weight_matrix.shape[0]+self.backward_weight_matrix.shape[1]))
+        self.backward_biases = xp.zeros(nb_units)
 
         # If we want an orthogonal init, we have to correct the shape
         if orthogonal_init:
             np.random.seed(seed)
-            full_weights = xp.asarray(ortho_group.rvs(nb_units))
-            self.forward_weight_matrix = full_weights
+            self.forward_weight_matrix = xp.asarray(ortho_group.rvs(nb_units))
+            self.backward_weight_matrix = xp.asarray(ortho_group.rvs(nb_units))
 
-        self.inverse_matrix = None
-        self.update_exact_inverse() # Inverse defined here
+        if not learn_inv:
+            self.update_exact_inverse() # Inverse defined here
     
         self.first_moment_factor = 0.9
         self.second_moment_factor = 0.99
@@ -46,8 +49,12 @@ class InvLayer:
         # This is initially adagrad
         self.adaptive = adaptive
         if self.adaptive:
-            self.adaptive_forward_weight_params = {'first_moment': xp.zeros(self.forward_weight_matrix.shape, 'second_moment': xp.zros(forward_weight_matrix.shape)}
-            self.adaptive_forward_bias_params = {'first_moment': xp.zeros(self.forward_biases.shape, 'second_moment': xp.zros(forward_biases.shape)}
+            self.adaptive_forward_weight_params = {'first_moment': xp.zeros(self.forward_weight_matrix.shape), 'second_moment': xp.zeros(forward_weight_matrix.shape)}
+            self.adaptive_forward_bias_params = {'first_moment': xp.zeros(self.forward_biases.shape), 'second_moment': xp.zeros(forward_biases.shape)}
+            if learn_inv:
+                self.adaptive_backward_weight_params = {'first_moment': xp.zeros(self.backward_weight_matrix.shape), 'second_moment': xp.zeros(backward_weight_matrix.shape)}
+                self.adaptive_backward_bias_params = {'first_moment': xp.zeros(self.backward_biases.shape), 'second_moment': xp.zeros(backward_biases.shape)}
+
 
     def __call__(self, data):
         return self.forward(data)
@@ -60,11 +67,12 @@ class InvLayer:
 
     def inverse(self, data):
         if self.linear:
-            return xp.einsum('ji, nj -> ni', self.inverse_matrix, data - self.forward_biases)
-        return xp.einsum('ji, nj -> ni', self.inverse_matrix, self.transfer_inverse_func(data) - self.forward_biases)
+            return xp.einsum('ji, nj -> ni', self.backward_weight_matrix, data - self.backward_biases)
+        return xp.einsum('ji, nj -> ni', self.backward_weight_matrix, self.transfer_inverse_func(data) - self.backward_biases)
 
     def update_exact_inverse(self):
-        self.inverse_matrix = xp.linalg.inv(self.forward_weight_matrix)
+        self.backward_weight_matrix = xp.linalg.inv(self.forward_weight_matrix)
+        self.backward_biases = xp.copy(self.forward_biases)
 
     def adaptive_update(self, direction, learning_rate, param_dict):
         param_dict['first_moment'] = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*self.param_dict['first_moment']
@@ -85,10 +93,26 @@ class InvLayer:
         else:
             self.forward_biases += learning_rate*direction
 
+    def update_backward_weights(self, direction, learning_rate):
+        if self.adaptive:
+            self.backward_weight_matrix += self.adaptive_update(direction, learning_rate, self.adaptive_backward_weight_params)
+        else:
+            self.backward_weight_matrix += learning_rate*direction
+
+    def update_backward_biases(self, direction, learning_rate):
+        if self.adaptive:
+            self.backward_biases += self.adaptive_update(direction, learning_rate, self.adaptive_backward_bias_params)
+        else:
+            self.backward_biases += learning_rate*direction
+
     def save_params(self, path):
         xp.save(path + "forward_weights.npy", self.forward_weight_matrix)
         xp.save(path + "forward_biases.npy", self.forward_biases)
+        xp.save(path + "backward_weights.npy", self.backward_weight_matrix)
+        xp.save(path + "backward_biases.npy", self.backward_biases)
 
     def load_params(self, path):
         self.forward_weight_matrix = xp.load(path + "forward_weights.npy")
         self.forward_biases = xp.load(path + "forward_biases.npy")
+        self.backward_weight_matrix = xp.load(path + "backward_weights.npy")
+        self.backward_biases = xp.load(path + "backward_biases.npy")
