@@ -65,6 +65,11 @@ class SquareInvNet:
             self.layers[layer_index].update_forward_weights(weight_updates[layer_index], learning_rate)
             self.layers[layer_index].update_forward_biases(bias_updates[layer_index], learning_rate)
 
+    def update_backward_parameters(self, weight_updates, bias_updates, learning_rate):
+        for layer_index in range(len(self.layers)):
+            self.layers[layer_index].update_backward_weights(weight_updates[layer_index], learning_rate)
+            self.layers[layer_index].update_backward_biases(bias_updates[layer_index], learning_rate)
+
     def get_gait_updates(self, forward_pass, targets, ortho_weighting=0.0, gamma=0.001):
         # Updates will be stored and returned
         weight_updates = []
@@ -184,6 +189,38 @@ class SquareInvNet:
             # Propagate the error to the next layer
             error = xp.einsum('nj, ij -> ni', error, self.layers[layer_index].forward_weight_matrix)
             error = xp.hstack([error, xp.zeros((error.shape[0], self.net_structure[layer_index] - error.shape[1]))])
+
+        return weight_updates[::-1], bias_updates[::-1]
+
+    def get_backward_updates(self, forward_pass):
+        # Updates will be stored and returned
+        weight_updates = []
+        bias_updates = []
+
+        # We must compute errors layer-wise.
+        # In our formulation, each layer's error is partly difference
+        nb_layers = len(self.layers)
+
+        # Calculating the inverse target
+        inverse = targets
+
+        # Running backwards through layers
+        for layer_index in range(nb_layers)[::-1]:
+            error = forward_pass[layer_index] - self.layers[layer_index].backward(forward_pass[layer_index+1])
+
+            # Calculate updates for this layer
+            weight_update = xp.mean(xp.einsum('nj, ni -> nij',error,
+                                              self.layers[layer_index].transfer_inverse_func(forward_pass[layer_index+1]) - self.layers[layer_index].backward_biases),
+                                    axis=0)
+            bias_update = -xp.mean(xp.einsum('nj, ji -> ni', error, self.layers[layer_index].backward_weight_matrix), axis=0)
+
+            ## Calculating a weight update based upon a soft orthogonal regularizer
+            #if ortho_weighting != 0.0:
+            #    weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
+
+            # Collect updates
+            weight_updates.append(-weight_update)
+            bias_updates.append(-bias_update)
 
         return weight_updates[::-1], bias_updates[::-1]
 

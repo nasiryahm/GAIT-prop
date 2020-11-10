@@ -31,6 +31,7 @@ seed = 1
 learning_rate = 0.0001
 linear = False
 tower = False
+learn_inv = False
 
 # Setting up the options for simulation
 opts, remaining = getopt.getopt(
@@ -41,6 +42,7 @@ opts, remaining = getopt.getopt(
      'linear',
      'tower',
      'orthogonal_init',
+     'learn_inv',
      'seed=',
      'orthogonal_reg=',
      'device=',
@@ -53,6 +55,8 @@ for opt, arg in opts:
         algorithm = arg
     if opt == '--orthogonal_init':
         ortho_init = True
+    if opt == '--learn_inv':
+        learn_inv = True
     if opt == '--local_connectivity':
         local_connectivity = True
     if opt == '--load':
@@ -90,6 +94,9 @@ outpath = outpath + algorithm + "_"
 
 if linear:
     outpath = outpath + "Linear_"
+
+if orthogonal_init::
+    outpath = outpath + "OrthoInit_"
 
 outpath = outpath + str(ortho_reg) + "OrthoReg_"
 # If we are using a non-zero orthogonal regularizer, initialise orthogonal matrices (for SquareInvNet).
@@ -209,7 +216,11 @@ for e_index in range(nb_epochs):
 
         # Here we update the inverse model (using the cupy.inv function on every layer)
         if algorithm == 'GAIT' or algorithm == 'TP':
-            net.create_exact_inverse_model()
+            if learn_inv:
+                weight_updates, bias_updates = net.get_backward_updates(forward)
+                net.update_backward_parameters(weight_updates, bias_updates, learning_rate)
+            else:
+                net.create_exact_inverse_model()
 
         # Upon some regular interval, check and print stats
         if (b_index != 0) and ((b_index % print_interval) == 0):
