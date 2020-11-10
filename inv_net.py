@@ -92,12 +92,8 @@ class SquareInvNet:
                 layer_derivatives = self.layers[layer_index].transfer_derivative_func(
                     self.layers[layer_index].transfer_inverse_func(forward_pass[layer_index + 1]))
 
-            grad_adjusted_inc_factor = gamma * layer_derivatives * layer_derivatives
-            mult_factor = mult_factor / gamma
-            target = (1.0 - grad_adjusted_inc_factor) * forward_pass[layer_index + 1] + grad_adjusted_inc_factor * inverse
-            
-            error = mult_factor * (forward_pass[layer_index + 1] - target)
-            error /= layer_derivatives
+            error = mult_factor * (forward_pass[layer_index + 1] - inverse)
+            error *= layer_derivatives
 
             # Calculate updates for this layer
             weight_update = xp.mean(xp.einsum('nj, ni -> nij',error,
@@ -114,7 +110,11 @@ class SquareInvNet:
             bias_updates.append(-bias_update)
 
             # Adjust and calculate the next layers target
-            inverse = self.layers[layer_index].backward(target)
+            grad_adjusted_inc_factor = gamma * layer_derivatives * layer_derivatives
+            next_target = (1.0 - grad_adjusted_inc_factor) * forward_pass[layer_index + 1] + grad_adjusted_inc_factor * inverse
+            mult_factor = mult_factor / gamma
+            inverse = self.layers[layer_index].backward(next_target)
+            
             
             # Add the auxilliary neurons on
             inverse = xp.hstack([inverse, forward_pass[layer_index][:, self.net_structure[layer_index + 1]:]])

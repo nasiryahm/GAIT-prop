@@ -177,7 +177,6 @@ else:
 
 if load:
     net.load_params(outpath)
-    #net.create_exact_inverse_model()
     t_accuracies = np.loadtxt(outpath + "training_acc.txt").tolist()
     t_losses = np.loadtxt(outpath + "training_loss.txt").tolist()
     test_accuracies = np.loadtxt(outpath + "test_acc.txt").tolist()
