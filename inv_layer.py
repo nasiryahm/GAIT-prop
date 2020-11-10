@@ -46,10 +46,8 @@ class InvLayer:
         # This is initially adagrad
         self.adaptive = adaptive
         if self.adaptive:
-            self.first_moment_factor_weights = xp.zeros(self.forward_weight_matrix.shape)
-            self.first_moment_factor_biases = xp.zeros(self.biases.shape)
-            self.second_moment_factor_weights = xp.zeros(self.forward_weight_matrix.shape)
-            self.second_moment_factor_biases = xp.zeros(self.biases.shape)
+            self.adaptive_forward_weight_params = {'first_moment': xp.zeros(self.forward_weight_matrix.shape, 'second_moment': xp.zros(forward_weight_matrix.shape)}
+            self.adaptive_forward_bias_params = {'first_moment': xp.zeros(self.forward_biases.shape, 'second_moment': xp.zros(forward_biases.shape)}
 
     def __call__(self, data):
         return self.forward(data)
@@ -68,25 +66,22 @@ class InvLayer:
     def update_exact_inverse(self):
         self.inverse_matrix = xp.linalg.inv(self.forward_weight_matrix)
 
+    def adaptive_update(self, direction, learning_rate, param_dict):
+        param_dict['first_moment'] = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*self.param_dict['first_moment']
+        param_dict['second_moment'] = (1.0 - self.second_moment_factor)*direction**2 + self.second_moment_factor*param_dict['second_moment']
+
+        adjusted_learning_rate = (learning_rate / (1e-8 + xp.sqrt(param_dict['second_moment'])))
+        return adjusted_learning_rate*self.param_dict['first_moment']
+
     def update_forward_weights(self, direction, learning_rate):
         if self.adaptive:
-            self.first_moment_factor_weights = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*self.first_moment_factor_weights
-            self.second_moment_factor_weights = (1.0 - self.second_moment_factor)*direction**2 + self.second_moment_factor*self.second_moment_factor_weights
-
-            learning_rate = (learning_rate / (1e-8 + xp.sqrt(self.second_moment_factor_weights)))
-
-            self.forward_weight_matrix += learning_rate*self.first_moment_factor_weights
+            self.forward_weight_matrix += self.adaptive_update(direction, learning_rate, self.adaptive_forward_weight_params)
         else:
             self.forward_weight_matrix += learning_rate*direction
 
     def update_forward_biases(self, direction, learning_rate):
         if self.adaptive:
-            self.first_moment_factor_biases = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*self.first_moment_factor_biases
-            self.second_moment_factor_biases = (1.0 - self.second_moment_factor)*direction**2 + self.second_moment_factor*self.second_moment_factor_biases
-
-            learning_rate = (learning_rate / (1e-8 + xp.sqrt(self.second_moment_factor_biases)))
-
-            self.forward_biases += learning_rate*self.first_moment_factor_biases
+            self.forward_biases += self.adaptive_update(direction, learning_rate, self.adaptive_forward_bias_params)
         else:
             self.forward_biases += learning_rate*direction
 
