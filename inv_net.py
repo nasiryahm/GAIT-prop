@@ -12,7 +12,7 @@ except ImportError:
 class SquareInvNet:
     def __init__(self, nb_units, nb_hidden_layers, start_seed=None, **kwargs):
         # Construct the invertible layers
-        self.net_structure = [nb_units for x in range(nb_hidden_layers + 1)]
+        self.net_structure = [nb_units for x in range(nb_hidden_layers + 2)]
         self.layers = []
         this_seed = None
         for n in range(nb_hidden_layers):
@@ -32,7 +32,7 @@ class SquareInvNet:
         output = [data]
         # For the inverse direction, we invert layer order
         for indx, layer in enumerate(self.layers[::-1]):
-            out = layer.inverse(output[-1])
+            out = layer.backward(output[-1])
             output.append(xp.hstack([out, forward[-2 - indx][:, out.shape[1]:]]))
         # Finally, make the output as we would see the forward pass
         return output[::-1]
@@ -55,7 +55,7 @@ class SquareInvNet:
         weights = Variable(weight_matrix)
         reg = functions.einsum('ik, jk -> ij', weights, weights)
 
-        target = reg * xp.eye(self.layers[layer_index].weight_matrix.shape[0])
+        target = reg * xp.eye(weight_matrix.shape[0])
         ortho_loss = functions.sum((reg - target) ** 2)
         gradient = grad([ortho_loss], [weights])[0].array
         return ortho_weighting * gradient
@@ -85,14 +85,19 @@ class SquareInvNet:
 
         # Running backwards through layers
         for layer_index in range(nb_layers)[::-1]:
-            error = mult_factor * (forward_pass[layer_index + 1] - inverse)
 
             if self.layers[layer_index].linear:
                 layer_derivatives = xp.ones((error.shape))
             else:
                 layer_derivatives = self.layers[layer_index].transfer_derivative_func(
                     self.layers[layer_index].transfer_inverse_func(forward_pass[layer_index + 1]))
-                error *= layer_derivatives
+
+            grad_adjusted_inc_factor = gamma * layer_derivatives * layer_derivatives
+            mult_factor = mult_factor / gamma
+            target = (1.0 - grad_adjusted_inc_factor) * forward_pass[layer_index + 1] + grad_adjusted_inc_factor * inverse
+            
+            error = mult_factor * (forward_pass[layer_index + 1] - target)
+            error /= layer_derivatives
 
             # Calculate updates for this layer
             weight_update = xp.mean(xp.einsum('nj, ni -> nij',error,
@@ -109,10 +114,7 @@ class SquareInvNet:
             bias_updates.append(-bias_update)
 
             # Adjust and calculate the next layers target
-            grad_adjusted_inc_factor = gamma * layer_derivatives * layer_derivatives
-            inverse = self.layers[layer_index].inverse(
-                ((1.0 - grad_adjusted_inc_factor) * forward_pass[layer_index + 1] + grad_adjusted_inc_factor * inverse))
-            mult_factor = mult_factor / gamma
+            inverse = self.layers[layer_index].backward(target)
             
             # Add the auxilliary neurons on
             inverse = xp.hstack([inverse, forward_pass[layer_index][:, self.net_structure[layer_index + 1]:]])
@@ -201,15 +203,12 @@ class SquareInvNet:
         # In our formulation, each layer's error is partly difference
         nb_layers = len(self.layers)
 
-        # Calculating the inverse target
-        inverse = targets
-
         # Running backwards through layers
         for layer_index in range(nb_layers)[::-1]:
-            error = forward_pass[layer_index] - self.layers[layer_index].backward(forward_pass[layer_index+1])
+            error = self.layers[layer_index].backward(forward_pass[layer_index+1]) - forward_pass[layer_index]
 
             # Calculate updates for this layer
-            weight_update = xp.mean(xp.einsum('nj, ni -> nij',error,
+            weight_update = xp.mean(xp.einsum('nj, ni -> nij', error,
                                               self.layers[layer_index].transfer_inverse_func(forward_pass[layer_index+1]) - self.layers[layer_index].backward_biases),
                                     axis=0)
             bias_update = -xp.mean(xp.einsum('nj, ji -> ni', error, self.layers[layer_index].backward_weight_matrix), axis=0)

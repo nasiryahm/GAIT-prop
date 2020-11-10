@@ -32,6 +32,7 @@ learning_rate = 0.0001
 linear = False
 tower = False
 learn_inv = False
+inv_init = True
 
 # Setting up the options for simulation
 opts, remaining = getopt.getopt(
@@ -43,6 +44,7 @@ opts, remaining = getopt.getopt(
      'tower',
      'orthogonal_init',
      'learn_inv',
+     'no_inv_init',
      'seed=',
      'orthogonal_reg=',
      'device=',
@@ -57,8 +59,8 @@ for opt, arg in opts:
         ortho_init = True
     if opt == '--learn_inv':
         learn_inv = True
-    if opt == '--local_connectivity':
-        local_connectivity = True
+    if opt == '--no_inv_init':
+        inv_init = False
     if opt == '--load':
         load = True
     if opt == '--linear':
@@ -98,10 +100,14 @@ if linear:
 if ortho_init:
     outpath = outpath + "OrthoInit_"
 
+outpath = outpath + str(ortho_reg) + "OrthoReg_"
+
 if learn_inv:
     outpath = outpath + "LearnInv_"
 
-outpath = outpath + str(ortho_reg) + "OrthoReg_"
+if not inv_init:
+    outpath = outpath + "NoInvInit_"
+
 # If we are using a non-zero orthogonal regularizer, initialise orthogonal matrices (for SquareInvNet).
 if ortho_reg == 0.0:
     ortho_init = True
@@ -163,15 +169,15 @@ net = None
 if tower:
     net = TowerInvNet([x_train.shape[1], x_train.shape[1], 500, 200, 10], start_seed=seed, transfer_func=leaky_relu,
                       transfer_derivative_func=leaky_relu_derivative, transfer_inverse_func=leaky_relu_inverse,
-                      orthogonal_init=ortho_init, adaptive=True, linear=linear)
+                      orthogonal_init=ortho_init, adaptive=True, linear=linear, learn_inv=learn_inv)
 else:
     net = SquareInvNet(x_train.shape[1], nb_layers, start_seed=seed, transfer_func=leaky_relu,
                        transfer_derivative_func=leaky_relu_derivative, transfer_inverse_func=leaky_relu_inverse,
-                       orthogonal_init=ortho_init, adaptive=True, linear=linear)
+                       orthogonal_init=ortho_init, adaptive=True, linear=linear, learn_inv=learn_inv)
 
 if load:
     net.load_params(outpath)
-    net.create_exact_inverse_model()
+    #net.create_exact_inverse_model()
     t_accuracies = np.loadtxt(outpath + "training_acc.txt").tolist()
     t_losses = np.loadtxt(outpath + "training_loss.txt").tolist()
     test_accuracies = np.loadtxt(outpath + "test_acc.txt").tolist()
@@ -193,6 +199,8 @@ else:
 batch_size = int(len(device_x_train) / 1000)
 nb_batches_per_epoch = int(len(device_x_train) / batch_size)
 print_interval = 10  # After how many batches should we print an update and collect stats
+if inv_init:
+    net.create_exact_inverse_model()
 
 # Beginning training
 print(outpath)
@@ -211,7 +219,7 @@ for e_index in range(nb_epochs):
         if algorithm == 'BP':
             weight_updates, bias_updates = net.get_backprop_updates(forward, targets, ortho_weighting=ortho_reg)
         elif algorithm == 'GAIT':
-            weight_updates, bias_updates = net.get_gait_updates(forward, targets, gamma=1e-3, ortho_weighting=ortho_reg)
+            weight_updates, bias_updates = net.get_gait_updates(forward, targets, gamma=1e-2, ortho_weighting=ortho_reg)
         elif algorithm == 'TP':
             weight_updates, bias_updates = net.get_tp_updates(forward, targets, ortho_weighting=ortho_reg)
 

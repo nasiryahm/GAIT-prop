@@ -65,7 +65,7 @@ class InvLayer:
             return weight_transform
         return self.transfer_func(weight_transform)
 
-    def inverse(self, data):
+    def backward(self, data):
         if self.linear:
             return xp.einsum('ji, nj -> ni', self.backward_weight_matrix, data - self.backward_biases)
         return xp.einsum('ji, nj -> ni', self.backward_weight_matrix, self.transfer_inverse_func(data) - self.backward_biases)
@@ -75,11 +75,11 @@ class InvLayer:
         self.backward_biases = xp.copy(self.forward_biases)
 
     def adaptive_update(self, direction, learning_rate, param_dict):
-        param_dict['first_moment'] = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*self.param_dict['first_moment']
+        param_dict['first_moment'] = (1.0 - self.first_moment_factor)*direction + self.first_moment_factor*param_dict['first_moment']
         param_dict['second_moment'] = (1.0 - self.second_moment_factor)*direction**2 + self.second_moment_factor*param_dict['second_moment']
 
         adjusted_learning_rate = (learning_rate / (1e-8 + xp.sqrt(param_dict['second_moment'])))
-        return adjusted_learning_rate*self.param_dict['first_moment']
+        return adjusted_learning_rate*param_dict['first_moment']
 
     def update_forward_weights(self, direction, learning_rate):
         if self.adaptive:
