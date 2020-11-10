@@ -161,7 +161,7 @@ else:
 
 if load:
     net.load_params(outpath)
-    net.update_inverse_model()
+    net.create_exact_inverse_model()
     t_accuracies = np.loadtxt(outpath + "training_acc.txt").tolist()
     t_losses = np.loadtxt(outpath + "training_loss.txt").tolist()
     test_accuracies = np.loadtxt(outpath + "test_acc.txt").tolist()
@@ -205,11 +205,11 @@ for e_index in range(nb_epochs):
         elif algorithm == 'TP':
             weight_updates, bias_updates = net.get_tp_updates(forward, targets, ortho_weighting=ortho_reg)
 
-        net.update_parameters(weight_updates, bias_updates, learning_rate)
+        net.update_forward_parameters(weight_updates, bias_updates, learning_rate)
 
         # Here we update the inverse model (using the cupy.inv function on every layer)
         if algorithm == 'GAIT' or algorithm == 'TP':
-            net.update_inverse_model()
+            net.create_exact_inverse_model()
 
         # Upon some regular interval, check and print stats
         if (b_index != 0) and ((b_index % print_interval) == 0):

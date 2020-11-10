@@ -35,9 +35,9 @@ class SquareInvNet:
         # Finally, make the output as we would see the forward pass
         return output[::-1]
 
-    def update_inverse_model(self):
+    def create_exact_inverse_model(self):
         for layer in self.layers[1:]:
-            layer.update_inverse()
+            layer.update_exact_inverse()
 
     def save_params(self, out_folder):
         # Layer-wise dump weights to the output folder
@@ -49,8 +49,8 @@ class SquareInvNet:
         for index, layer in enumerate(self.layers):
             layer.load_params(out_folder + str(index) + "L")
 
-    def ortho_gradients(self, ortho_weighting, layer_index):
-        weights = Variable(self.layers[layer_index].weight_matrix)
+    def ortho_gradients(self, ortho_weighting, weight_matrix):
+        weights = Variable(weight_matrix)
         reg = functions.einsum('ik, jk -> ij', weights, weights)
 
         target = reg * xp.eye(self.layers[layer_index].weight_matrix.shape[0])
@@ -58,10 +58,10 @@ class SquareInvNet:
         gradient = grad([ortho_loss], [weights])[0].array
         return ortho_weighting * gradient
 
-    def update_parameters(self, weight_updates, bias_updates, learning_rate):
+    def update_forward_parameters(self, weight_updates, bias_updates, learning_rate):
         for layer_index in range(len(self.layers)):
-            self.layers[layer_index].update_weights(weight_updates[layer_index], learning_rate)
-            self.layers[layer_index].update_biases(bias_updates[layer_index], learning_rate)
+            self.layers[layer_index].update_forward_weights(weight_updates[layer_index], learning_rate)
+            self.layers[layer_index].update_forward_biases(bias_updates[layer_index], learning_rate)
 
     def get_gait_updates(self, forward_pass, targets, ortho_weighting=0.0, gamma=0.001):
         # Updates will be stored and returned
@@ -94,7 +94,7 @@ class SquareInvNet:
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(-weight_update)
@@ -135,7 +135,7 @@ class SquareInvNet:
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(-weight_update)
@@ -166,14 +166,14 @@ class SquareInvNet:
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(-weight_update)
             bias_updates.append(-bias_update)
 
             # Propagate the error to the next layer
-            error = xp.einsum('nj, ij -> ni', error, self.layers[layer_index].weight_matrix)
+            error = xp.einsum('nj, ij -> ni', error, self.layers[layer_index].forward_weight_matrix)
 
         return weight_updates[::-1], bias_updates[::-1]
 
@@ -231,7 +231,7 @@ class TowerInvNet(SquareInvNet):
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(-weight_update)
@@ -273,7 +273,7 @@ class TowerInvNet(SquareInvNet):
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(-weight_update)
@@ -304,7 +304,7 @@ class TowerInvNet(SquareInvNet):
 
             # Calculating a weight update based upon a soft orthogonal regularizer
             if ortho_weighting != 0.0:
-                weight_update += self.ortho_gradients(ortho_weighting, layer_index)
+                weight_update += self.ortho_gradients(ortho_weighting, self.layers[layer_index].forward_weight_matrix)
 
             # Collect updates
             weight_updates.append(- weight_update)
@@ -312,7 +312,7 @@ class TowerInvNet(SquareInvNet):
 
             # Propagate the error to the next layer
             error *= layer_derivatives
-            error = xp.einsum('nj, ij -> ni', error, self.layers[layer_index].weight_matrix)
+            error = xp.einsum('nj, ij -> ni', error, self.layers[layer_index].forward_weight_matrix)
             error = xp.hstack([error, xp.zeros((error.shape[0], self.net_structure[layer_index] - error.shape[1]))])
 
         return weight_updates[::-1], bias_updates[::-1]
